@@ -1,0 +1,147 @@
+const chpConnection = require('../database/CHPConnection');
+
+// Controller that interacts with database to retrieve data.
+class ServerController {
+    constructor() {
+        console.log('Server Controller Initialized!');
+    }
+    
+    // Fetches all Servers
+    async Servers(ctx) {
+        console.log('Controller HIT: ServerController::ManyServers');
+        return new Promise((resolve, reject) => {
+            const query = 'SELECT * FROM L6_Server';
+            
+            chpConnection.query(query, (err, res) => {
+                if(err) {
+                    reject(`Error querying CHP.L6_Server: ${err}`);
+                }
+                
+                ctx.body = res;
+                ctx.status = 200;
+                
+                resolve();
+            });
+        })
+         .catch(err => {
+            ctx.status = 500;
+            ctx.body = err;
+        });
+    }
+
+    // Fetches a single Server
+    async Server(ctx) {
+        console.log('Controller HIT: ServerController::SingleServer');
+        return new Promise((resolve, reject) => {
+            const query = 'SELECT * FROM L6_Server WHERE name = ?;';
+            const dc = ctx.params.Server;
+            
+            chpConnection.query({
+                sql: query,
+                values: [dc]
+            }, (err, res) => {
+                if(err) {
+                    reject(err);
+                } 
+
+                ctx.body = res;
+                ctx.status = 200;
+                resolve();
+            });
+        })
+         .catch(err => {
+            ctx.status = 500;
+            ctx.body = {
+                error: `Internal Server Error: ${err}`,
+                status: 500
+            };
+        });
+    }
+
+    // Add a new Server
+    async addServer(ctx, next) {
+        console.log('Controller HIT: ServerController::addServer');
+       return new Promise((resolve, reject) => {
+           const newServer = ctx.request.body;
+           chpConnection.query({
+               sql: 'INSERT INTO L6_Server(id,hostName,DataCenter,installedOn,powerOnAt) VALUES (?, ?, ?, ?, ?);',
+               values: [newServer.id, newServer.hostName, newServer.L6_DataCenter, newServer.installedOn, newServer.powerOnAt]
+           }, (err, res) => {
+               if(err) {
+                   reject(err);
+               }
+
+               resolve();
+           });
+           
+       })
+        .then(await next)
+        .catch(err => {
+           ctx.status = 500;
+           ctx.body = {
+               error: `Internal Server Error: ${err}`,
+               status: 500
+           };
+       });
+    }
+
+    // Update a Server
+    async updateServer(ctx, next) {
+        console.log('Controller HIT: ServerController::updateServer');
+        return new Promise((resolve, reject) => {
+            const Server = ctx.request.body;
+            chpConnection.query({
+                sql: `
+                    UPDATE L6_Server 
+                    SET 
+                        hostname = ?,
+                        L6_Datacenter = ?
+                        installedOn = ?
+                        powerOnAt = ?
+                    WHERE id = ?
+                    `,
+                values: [Server.hostName, Server.L6_DataCenter, Server.installedOn, Server.powerOnAt, ctx.params.Server]
+            }, (err, res) => {
+                if(err) {
+                    reject(err);
+                }
+
+                resolve();
+            });
+        })
+         .then(await next)
+         .catch(err => {
+            ctx.status = 500;
+            ctx.body = {
+                error: `Internal Server Error: ${err}`,
+                status: 500
+            };
+        });
+    }
+
+    async deleteServer(ctx, next) {
+        console.log('Controller HIT: DataCenterServer::deleteServer');
+        return new Promise((resolve, reject) => {
+            chpConnection.query({
+                sql: `DELETE FROM L6_Server WHERE name = ?;`,
+                values: [ctx.params.Server]
+            }, (err, res) => {
+                if(err) {
+                    reject(err);
+                }
+                resolve();
+            });
+        })
+        .then(await next)
+        .catch(err => {
+            ctx.status = 500;
+            ctx.body = {
+                error: `Internal Server Error: ${err}`,
+                status: 500
+            };
+        });
+    }
+}
+
+module.exports = ServerController;
+
